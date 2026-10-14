@@ -88,15 +88,62 @@ function draw(T){F=Math.floor(T*FPS);x.setTransform(1,0,0,1,0,0);x.clearRect(0,0
  const v=x.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(40,15,0,.55)');x.fillStyle=v;x.fillRect(0,0,W,H);
  x.fillStyle=`rgba(255,200,140,${.02+Math.abs(j(.06))})`;x.fillRect(0,0,W,H);
  const edge=[6,11].map(s=>Math.abs(T-s)).reduce((a,b)=>Math.min(a,b));if(edge<.25){x.fillStyle=`rgba(0,0,0,${1-edge/.25})`;x.fillRect(0,0,W,H)}}
+function buildMusic(ctx,dest,t0){
+ const comp=ctx.createDynamicsCompressor();comp.threshold.value=-14;comp.knee.value=6;comp.ratio.value=12;comp.attack.value=.003;comp.release.value=.2;
+ const master=ctx.createGain();master.gain.value=.55;master.connect(comp);comp.connect(dest);
+ master.gain.setValueAtTime(.55,t0+14.2);master.gain.linearRampToValueAtTime(0,t0+15);
+ const mf=n=>440*Math.pow(2,(n-69)/12);
+ const nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+ function noise(s,d){const n=ctx.createBufferSource();n.buffer=nb;n.loop=true;n.start(s);n.stop(s+d);return n}
+ function tone(type,f,s,d,vol,cut,q,dst){const o=ctx.createOscillator(),g=ctx.createGain(),fl=ctx.createBiquadFilter();o.type=type;o.frequency.value=f;fl.type='lowpass';fl.frequency.value=cut;fl.Q.value=q||1;
+  g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(vol,s+.008);g.gain.exponentialRampToValueAtTime(vol*.4,s+d*.6);g.gain.linearRampToValueAtTime(0,s+d);
+  o.connect(fl);fl.connect(g);g.connect(dst||master);o.start(s);o.stop(s+d+.02);return fl}
+ const E=.25; // 8th note at 120bpm
+ // original progression (roots, chord tones) — heroic I-bVI-bVII-I feel in C
+ const prog=[[36,[60,64,67,72]],[32,[56,60,63,68]],[34,[58,62,65,70]],[36,[60,64,67,72]]];
+ // 0-6s: bass 8ths + arps, each chord 1.5s
+ for(let k=0;k<24;k++){const s=t0+k*E,[r,ch]=prog[Math.floor(k/6)%4];
+  tone('sawtooth',mf(r+(k%2?12:0)),s,E*.9,.32,400+k*40,4);
+  if(k>=4)tone('square',mf(ch[k%4]),s,E*.8,.08,2500);}
+ // 6-8.4s: tension pedal on G, rising arps, snare roll swell
+ for(let k=0;k<10;k++){const s=t0+6+k*E;tone('sawtooth',mf(31+(k%2?12:0)),s,E*.9,.3,500+k*120,5);
+  tone('square',mf([67,71,74,79][k%4]+(k>5?2:0)),s,E*.8,.06+k*.008,2000+k*300);}
+ for(let k=0;k<20;k++){const s=t0+6+1.2+k*.06;const n=noise(s,.05),g=ctx.createGain(),f=ctx.createBiquadFilter();f.type='highpass';f.frequency.value=1500;
+  g.gain.setValueAtTime(.02+k*.012,s);g.gain.exponentialRampToValueAtTime(.001,s+.05);n.connect(f);f.connect(g);g.connect(master);}
+ // 8.4s seal pop hit: crash + low boom + big stab
+ {const s=t0+8.4,n=noise(s,1.6),g=ctx.createGain(),f=ctx.createBiquadFilter();f.type='highpass';f.frequency.value=3000;g.gain.setValueAtTime(.3,s);g.gain.exponentialRampToValueAtTime(.001,s+1.5);n.connect(f);f.connect(g);g.connect(master);
+  const o=ctx.createOscillator(),og=ctx.createGain();o.frequency.setValueAtTime(120,s);o.frequency.exponentialRampToValueAtTime(40,s+.4);og.gain.setValueAtTime(.6,s);og.gain.exponentialRampToValueAtTime(.001,s+.5);o.connect(og);og.connect(master);o.start(s);o.stop(s+.6);
+  [53,60,65,69,72].forEach(m=>tone('sawtooth',mf(m),s,.9,.07,3000));}
+ // 8.4-11s: F - G - Ab - Bb drive into landing
+ const p2=[[29,[65,69,72,77]],[31,[67,71,74,79]],[32,[68,72,75,80]],[34,[70,74,77,82]]];
+ for(let k=0;k<10;k++){const s=t0+8.4+.1+k*E,[r,ch]=p2[Math.min(3,Math.floor(k/2.5))];
+  tone('sawtooth',mf(r+(k%2?12:0)),s,E*.9,.32,900,4);tone('square',mf(ch[k%4]),s,E*.8,.08,3000);}
+ // whoosh sweeps: flux build 3-6s, and pre-landing 10-11s
+ [[3,3,.22],[10,1,.15]].forEach(([a,d,v])=>{const s=t0+a,n=noise(s,d+.3),f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.Q.value=6;
+  f.frequency.setValueAtTime(200,s);f.frequency.exponentialRampToValueAtTime(8000,s+d);g.gain.setValueAtTime(.001,s);g.gain.exponentialRampToValueAtTime(v,s+d);g.gain.exponentialRampToValueAtTime(.001,s+d+.3);n.connect(f);f.connect(g);g.connect(master);});
+ // 11s land: big C major chord ringing out to 15s
+ {const s=t0+11;[36,48,60,64,67,72,76].forEach((m,i)=>{[-6,6].forEach(dt=>{const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=mf(m);o.detune.value=dt;
+  f.type='lowpass';f.frequency.setValueAtTime(4000,s);f.frequency.exponentialRampToValueAtTime(600,s+4);g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(i<2?.12:.05,s+.02);g.gain.exponentialRampToValueAtTime(.002,s+4);
+  o.connect(f);f.connect(g);g.connect(master);o.start(s);o.stop(s+4);})});
+  const o=ctx.createOscillator(),og=ctx.createGain();o.frequency.setValueAtTime(110,s);o.frequency.exponentialRampToValueAtTime(40,s+.5);og.gain.setValueAtTime(.5,s);og.gain.exponentialRampToValueAtTime(.001,s+.6);o.connect(og);og.connect(master);o.start(s);o.stop(s+.7);}
+ return master;
+}
+let AC=null,musicOut=null,recDest=null;
+function startAudio(){try{if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();recDest=AC.createMediaStreamDestination?AC.createMediaStreamDestination():null}
+ AC.resume&&AC.resume();if(musicOut){musicOut.gain.cancelScheduledValues(0);musicOut.gain.value=0;try{musicOut.disconnect()}catch(e){}}
+ const bus=AC.createGain();bus.connect(AC.destination);if(recDest)bus.connect(recDest);const t0=AC.currentTime+.05;musicOut=buildMusic(AC,bus,t0);return t0}catch(e){AC=null;return null}}
 let raf=null;
-function run(onEnd){cancelAnimationFrame(raf);const t0=performance.now();let last=-1;
- (function loop(){const T=(performance.now()-t0)/1000;if(T>=DUR){draw(DUR-.001);onEnd&&onEnd();return}
+function run(onEnd){cancelAnimationFrame(raf);const at0=startAudio(),p0=performance.now()+50;let last=-1;
+ const now=()=>(at0!=null&&AC.state==='running')?AC.currentTime-at0:(performance.now()-p0)/1000;
+ (function loop(){const T=Math.max(0,now());if(T>=DUR){draw(DUR-.001);onEnd&&onEnd();return}
   const f=Math.floor(T*FPS);if(f!==last){last=f;draw(T)}raf=requestAnimationFrame(loop)})()}
 document.getElementById('play').onclick=()=>run();
 document.getElementById('rec').onclick=()=>{const st=document.getElementById('st');
  if(!window.MediaRecorder){st.textContent='Recording not supported here; use a screen recorder.';return}
- const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm'],type=types.find(t=>MediaRecorder.isTypeSupported(t));
- const r=new MediaRecorder(c.captureStream(30),{mimeType:type,videoBitsPerSecond:10e6}),ch=[];r.ondataavailable=e=>ch.push(e.data);
+ const types=['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'],type=types.find(t=>MediaRecorder.isTypeSupported(t));
+ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();recDest=AC.createMediaStreamDestination()}catch(e){}}
+ const stream=c.captureStream(30);if(recDest)recDest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+ const r=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:10e6}),ch=[];r.ondataavailable=e=>ch.push(e.data);
  r.onstop=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(ch,{type}));a.download='radpet85_clay.'+(type.includes('mp4')?'mp4':'webm');a.click();st.textContent='Saved!'};
  st.textContent='Recording...';r.start();run(()=>setTimeout(()=>r.stop(),200))};
 draw(0);
