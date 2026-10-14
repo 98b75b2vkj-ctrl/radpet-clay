@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RadPet 85 · Claymation Clip</title>
+<style>
+body{margin:0;background:#1a0e06;color:#f6e7c8;font:bold 16px "Trebuchet MS",sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
+canvas{height:min(82vh,1100px);max-width:96vw;border:4px solid #000;border-radius:12px;box-shadow:0 0 30px rgba(255,122,0,.4);background:#000}
+.ctl{display:flex;gap:10px;align-items:center}
+button{font:bold 16px "Trebuchet MS",sans-serif;padding:10px 18px;min-height:44px;border:3px solid #000;border-radius:10px;cursor:pointer;background:linear-gradient(#ffb15c,#ff7a00);box-shadow:0 4px 0 #000}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+#rec{background:linear-gradient(#7ff3ff,#1fb5c9)}
+</style></head><body>
+<div class="ctl"><button id="play">▶ Play</button><button id="rec">⏺ Record 15s</button><span id="st"></span></div>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=1080,H=1920,DUR=15,FPS=12;
+const OR='#ff7a1a',ORD='#c2410c',TE='#1fb5c9',TED='#0d6e7c',CR='#f6e7c8',BR='#5a2e14';
+let seed=1;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+// pre-baked clay texture (fingerprints + speckle)
+const tex=document.createElement('canvas');tex.width=W;tex.height=H;(function(){const t=tex.getContext('2d');seed=7;
+ for(let i=0;i<5000;i++){t.fillStyle=`rgba(${rnd()<.5?0:255},${rnd()<.5?0:255},${rnd()<.5?0:255},${.03+rnd()*.04})`;t.beginPath();t.arc(rnd()*W,rnd()*H,1+rnd()*3,0,7);t.fill()}
+ t.lineWidth=1.5;for(let i=0;i<40;i++){const cx=rnd()*W,cy=rnd()*H;t.strokeStyle='rgba(0,0,0,.05)';for(let r=6;r<40;r+=5){t.beginPath();t.ellipse(cx,cy,r,r*.7,rnd(),0,Math.PI*1.6);t.stroke()}}})();
+// jitter per stop-motion frame
+let F=0;const j=(a=4)=>{seed=(F*9301+a*49297)%233280+1;return (rnd()-.5)*a};
+// clay blob: shaded ellipse with highlight + rim
+function clay(cx,cy,rx,ry,col,dark,rot=0){x.save();x.translate(cx+j(3),cy+j(3));x.rotate(rot+j(.02));
+ x.shadowColor='rgba(0,0,0,.45)';x.shadowBlur=24;x.shadowOffsetY=14;
+ const g=x.createRadialGradient(-rx*.35,-ry*.4,Math.min(rx,ry)*.1,0,0,Math.max(rx,ry)*1.05);g.addColorStop(0,'#fff8');g.addColorStop(.12,col);g.addColorStop(.85,col);g.addColorStop(1,dark);
+ x.fillStyle=g;x.beginPath();
+ for(let a=0;a<=Math.PI*2+.01;a+=Math.PI/24){const wob=1+Math.sin(a*5+F*.7)*.012+j(.012);x.lineTo(Math.cos(a)*rx*wob,Math.sin(a)*ry*wob)}
+ x.fill();x.shadowColor='transparent';x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=4;x.stroke();x.restore()}
+function rclay(X,Y,w,h,r,col,dark){x.save();x.translate(j(3),j(3));x.shadowColor='rgba(0,0,0,.45)';x.shadowBlur=24;x.shadowOffsetY=14;
+ const g=x.createLinearGradient(X,Y,X+w*.3,Y+h);g.addColorStop(0,col);g.addColorStop(.8,col);g.addColorStop(1,dark);x.fillStyle=g;
+ x.beginPath();x.roundRect(X,Y,w,h,r);x.fill();x.shadowColor='transparent';x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=5;x.stroke();
+ x.fillStyle='rgba(255,255,255,.18)';x.beginPath();x.roundRect(X+w*.08,Y+h*.05,w*.5,h*.06,20);x.fill();x.restore()}
+function clayText(s,y,size,col,dark){x.save();x.font=`900 ${size}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`;x.textAlign='center';x.textBaseline='middle';
+ const X=W/2+j(4),Y=y+j(4);x.lineJoin='round';x.lineWidth=size*.22;x.strokeStyle='#000';x.strokeText(s,X,Y+8);x.strokeStyle=dark;x.strokeText(s,X,Y);
+ const g=x.createLinearGradient(0,Y-size/2,0,Y+size/2);g.addColorStop(0,'#fff6');g.addColorStop(.25,col);g.addColorStop(1,dark);x.fillStyle=g;x.fillText(s,X,Y);x.restore()}
+const ease=t=>{t=Math.max(0,Math.min(1,t));return 1-Math.pow(1-t,3)*Math.cos(t*Math.PI*1.5)};
+function bg(a,b){const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,a);g.addColorStop(1,b);x.fillStyle=g;x.fillRect(-20,-20,W+40,H+40);
+ x.fillStyle='rgba(0,0,0,.18)';x.fillRect(-20,H*.72,W+40,H*.3)}
+function bolt(X,Y,s,a){x.save();x.translate(X+j(4),Y+j(4));x.scale(s,s);x.globalAlpha=a;x.fillStyle='#7ff3ff';x.shadowColor='#55e0ff';x.shadowBlur=30;
+ x.beginPath();x.moveTo(10,-90);x.lineTo(-40,10);x.lineTo(0,10);x.lineTo(-20,90);x.lineTo(45,-15);x.lineTo(5,-15);x.lineTo(25,-90);x.closePath();x.fill();x.restore()}
+// pixel pet: 10x9 grid of clay pixels
+const PET=['..oooooo..','.oooooooo.','oowooooowo','ookoooooko','oooooooooo','oooppppooo','.oooooooo.','.oo.oo.oo.','.oo....oo.'];
+function pet(cx,cy,s,sq){const b=s*1.8,sx=1+sq*.25,sy=1-sq*.25,w=10*b*sx,h=9*b*sy;
+ clay(cx,cy+h/2+20,w*.45,26,'rgba(0,0,0,.35)','rgba(0,0,0,.35)');
+ PET.forEach((row,r)=>[...row].forEach((ch,k)=>{if(ch==='.')return;const col={o:OR,w:'#fff',k:'#111',p:'#ff6fa8'}[ch],dk={o:ORD,w:'#ccc',k:'#000',p:'#c23a6e'}[ch];
+  const X=cx-w/2+k*b*sx,Y=cy-h/2+r*b*sy;x.save();x.translate(j(1.5),j(1.5));x.fillStyle=col;x.beginPath();x.roundRect(X,Y,b*sx+1,b*sy+1,b*.3);x.fill();
+  x.fillStyle=dk;x.globalAlpha=.35;x.fillRect(X,Y+b*sy*.75,b*sx,b*sy*.25);x.restore()}))}
+function scene1(t){ // 0-6s pet in flux capacitor
+ bg('#0d6e7c','#3a1a08');
+ rclay(140,300,800,980,60,'#c9ccd1','#7b7f86');rclay(200,360,680,860,40,'#2a2a2a','#000');
+ const gl=.5+.5*Math.abs(Math.sin(t*6));
+ [[540,560],[330,960],[750,960]].forEach(([X,Y])=>{x.save();x.strokeStyle=`rgba(127,243,255,${gl})`;x.shadowColor='#55e0ff';x.shadowBlur=40;x.lineWidth=40;x.lineCap='round';
+  x.beginPath();x.moveTo(540+j(2),780);x.lineTo(X+j(2),Y);x.stroke();x.restore();clay(X,Y,55,55,TE,TED)});
+ clay(540,780,70,70,'#7ff3ff',TE);
+ const ph=(t*1.4)%1,hop=Math.abs(Math.sin(ph*Math.PI)),sq=ph<.12||ph>.88?.6:0;
+ pet(540,1040-hop*120,16,sq);
+ bolt(130,200,1.2,gl);bolt(960,250,1,1-gl*.5);
+ clayText(t<3?'1.21 GIGAWATTS':'OF CUTENESS!',1750,100,'#ffb15c',ORD)}
+function scene2(t){ // 6-11s time capsule seal pops
+ bg('#ff7a1a','#5a2e14');
+ const open=t>2.4,shake=t>1.2&&!open?(t-1.2)*14:0;
+ rclay(160,520,760,520,24,CR,'#cdb68b');
+ x.save();x.translate(j(2),j(2));x.fillStyle='#e9d4a8';x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=5;x.beginPath();
+ if(open){x.moveTo(160,520);x.lineTo(540,300+ease((t-2.4)/.5)*0);x.lineTo(920,520)}else{x.moveTo(160,520);x.lineTo(540,800);x.lineTo(920,520)}x.closePath();x.fill();x.stroke();x.restore();
+ if(open){const r=ease((t-2.4)/.8),ny=560-r*400;rclay(260,ny,560,420,20,'#fffbe9','#d8c9a6');
+  x.save();x.translate(j(2),j(2));x.fillStyle=BR;x.font='bold 46px "Courier New",monospace';x.textAlign='center';x.fillText('Dear future me...',540,ny+150);x.font='bold 36px "Courier New",monospace';x.fillText('See you in 2015!',540,ny+240);x.restore()}
+ if(!open)clay(540+j(shake),800+j(shake),80,80,'#d1201a','#7a0c08',j(shake*.02));
+ else{const k=(t-2.4)*1.5;seed=3;for(let i=0;i<10;i++){const a=rnd()*Math.PI*2,v=200+rnd()*300;clay(540+Math.cos(a)*v*k,800+Math.sin(a)*v*k+300*k*k,18+rnd()*14,16+rnd()*12,'#d1201a','#7a0c08')}}
+ const d=['OCT 26 1985',open?'OCT 26 1985':'OCT 14 1985'];
+ rclay(150,1300,780,300,30,'#3a3a31','#111');
+ [['DEST',d[0],'#ff3b2f',1380],['PRES',d[1],'#3dff2a',1500]].forEach(([l,v,col,y])=>{x.save();x.translate(j(2),j(2));x.fillStyle='#000';x.fillRect(190,y-45,700,90);
+  x.fillStyle=col;x.shadowColor=col;x.shadowBlur=18;x.font='bold 60px "Courier New",monospace';x.textAlign='left';x.textBaseline='middle';x.fillText(v,220,y);
+  x.shadowBlur=0;x.fillStyle=ORD;x.fillRect(760,y-22,110,44);x.fillStyle='#fff';x.font='bold 26px "Courier New",monospace';x.fillText(l,775,y);x.restore()});
+ clayText(t<2.4?'SEALED...':'IT ARRIVED!',1720,90,'#ffb15c',ORD)}
+function scene3(t){ // 11-15s end card
+ bg('#ff7a1a','#0d6e7c');
+ const s=ease(t/.6);x.save();x.translate(W/2,520);x.scale(s,s);x.translate(-W/2,-520);clayText("WHERE WE'RE",440,96,CR,ORD);clayText('GOING...',570,110,CR,ORD);x.restore();
+ const ph=(t*1.6)%1;pet(W/2,900-Math.abs(Math.sin(ph*Math.PI))*80,20,0);
+ if(t>.8){const s2=ease((t-.8)/.5);rclay(90,1150,900,200,100,TE,TED);x.save();x.globalAlpha=s2;
+  x.save();x.translate(j(3),j(3));x.fillStyle='#fff';x.font='900 66px "Arial Rounded MT Bold","Trebuchet MS",sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('radpet85.netlify.app',W/2,1250);x.restore();x.restore()}
+ if(t>1.4)clayText('Adopt a pet ⚡ Seal a capsule',1480,52,CR,ORD);
+ bolt(150,300,1.3,.6+.4*Math.abs(Math.sin(t*5)));bolt(930,1650,1.1,.6+.4*Math.abs(Math.cos(t*5)))}
+function draw(T){F=Math.floor(T*FPS);x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,W,H);
+ x.translate(j(6),j(6));
+ if(T<6)scene1(T);else if(T<11)scene2(T-6);else scene3(T-11);
+ x.setTransform(1,0,0,1,0,0);x.globalCompositeOperation='multiply';x.drawImage(tex,0,0);x.globalCompositeOperation='source-over';
+ const v=x.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(40,15,0,.55)');x.fillStyle=v;x.fillRect(0,0,W,H);
+ x.fillStyle=`rgba(255,200,140,${.02+Math.abs(j(.06))})`;x.fillRect(0,0,W,H);
+ const edge=[6,11].map(s=>Math.abs(T-s)).reduce((a,b)=>Math.min(a,b));if(edge<.25){x.fillStyle=`rgba(0,0,0,${1-edge/.25})`;x.fillRect(0,0,W,H)}}
+let raf=null;
+function run(onEnd){cancelAnimationFrame(raf);const t0=performance.now();let last=-1;
+ (function loop(){const T=(performance.now()-t0)/1000;if(T>=DUR){draw(DUR-.001);onEnd&&onEnd();return}
+  const f=Math.floor(T*FPS);if(f!==last){last=f;draw(T)}raf=requestAnimationFrame(loop)})()}
+document.getElementById('play').onclick=()=>run();
+document.getElementById('rec').onclick=()=>{const st=document.getElementById('st');
+ if(!window.MediaRecorder){st.textContent='Recording not supported here; use a screen recorder.';return}
+ const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm'],type=types.find(t=>MediaRecorder.isTypeSupported(t));
+ const r=new MediaRecorder(c.captureStream(30),{mimeType:type,videoBitsPerSecond:10e6}),ch=[];r.ondataavailable=e=>ch.push(e.data);
+ r.onstop=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(ch,{type}));a.download='radpet85_clay.'+(type.includes('mp4')?'mp4':'webm');a.click();st.textContent='Saved!'};
+ st.textContent='Recording...';r.start();run(()=>setTimeout(()=>r.stop(),200))};
+draw(0);
+</script></body></html>
