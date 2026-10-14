@@ -63,10 +63,10 @@ function scene2(t){ // 6-11s time capsule seal pops
  rclay(160,520,760,520,24,CR,'#cdb68b');
  x.save();x.translate(j(2),j(2));x.fillStyle='#e9d4a8';x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=5;x.beginPath();
  if(open){x.moveTo(160,520);x.lineTo(540,300+ease((t-2.4)/.5)*0);x.lineTo(920,520)}else{x.moveTo(160,520);x.lineTo(540,800);x.lineTo(920,520)}x.closePath();x.fill();x.stroke();x.restore();
- if(open){const r=ease((t-2.4)/.8),ny=560-r*400;rclay(260,ny,560,420,20,'#fffbe9','#d8c9a6');
-  x.save();x.translate(j(2),j(2));x.fillStyle=BR;x.font='bold 46px "Courier New",monospace';x.textAlign='center';x.fillText('Dear future me...',540,ny+150);x.font='bold 36px "Courier New",monospace';x.fillText('See you in 2015!',540,ny+240);x.restore()}
  if(!open)clay(540+j(shake),800+j(shake),80,80,'#d1201a','#7a0c08',j(shake*.02));
- else{const k=(t-2.4)*1.5;seed=3;for(let i=0;i<10;i++){const a=rnd()*Math.PI*2,v=200+rnd()*300;clay(540+Math.cos(a)*v*k,800+Math.sin(a)*v*k+300*k*k,18+rnd()*14,16+rnd()*12,'#d1201a','#7a0c08')}}
+ else{const k=Math.min(1,(t-2.4)/.35),e=k*k*(3-2*k);clay(540+e*380,800-Math.sin(k*Math.PI)*90+e*40,80,80,'#d1201a','#7a0c08',e*1.2)}
+ if(open&&t>2.75){const r=ease((t-2.75)/.8),ny=560-r*400;rclay(260,ny,560,420,20,'#fffbe9','#d8c9a6');
+  x.save();x.translate(j(2),j(2));x.fillStyle=BR;x.font='bold 46px "Courier New",monospace';x.textAlign='center';x.fillText('Dear future me...',540,ny+150);x.font='bold 36px "Courier New",monospace';x.fillText('See you in 2015!',540,ny+240);x.restore()}
  const d=['OCT 26 1985',open?'OCT 26 1985':'OCT 14 1985'];
  rclay(150,1300,780,300,30,'#3a3a31','#111');
  [['DEST',d[0],'#ff3b2f',1380],['PRES',d[1],'#3dff2a',1500]].forEach(([l,v,col,y])=>{x.save();x.translate(j(2),j(2));x.fillStyle='#000';x.fillRect(190,y-45,700,90);
